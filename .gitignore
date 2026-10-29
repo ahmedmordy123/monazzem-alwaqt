@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+src-tauri/target/
+target/
+
+# Benchmarks (raw / large)
+benchmarks/
+*.trace.json
+*.chrometrace
+
+# Logs & caches
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.cache/
+.vite/
+.turbo/
+coverage/
+playwright-report/
+test-results/
+
+# Env / local
+.env
+.env.*
+!.env.example
+*.local
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Tauri / Rust (future)
+src-tauri/WixTools/
+*.pdb
+
+# Misc
+*.tsbuildinfo
+.eslintcache

@@ -1,0 +1,616 @@
+/* Milestone 0 — CSS 3D flip cube (transform/opacity only) */
+
+.desk-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 8vmin;
+  background: #0a0a0a;
+  cursor: none;
+}
+
+.desk-hint {
+  position: absolute;
+  bottom: max(4vmin, 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  color: var(--hint);
+  font-size: clamp(12px, 2.2vmin, 16px);
+  letter-spacing: 0.02em;
+  text-align: center;
+  max-width: min(90vw, 420px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.desk-hint.is-visible {
+  opacity: 0.85;
+}
+
+/* ~65% of shorter side; perspective from --perspective (px) */
+.cube-scene {
+  --cube-size: min(65vmin, calc(100vmin - 16vmin));
+  --yaw: -22deg;
+  --pitch: -15deg;
+  --perspective: 1200px;
+  --nudge-x: calc(var(--cube-size) * -0.09);
+  --nudge-y: calc(var(--cube-size) * 0.055);
+  position: relative;
+  width: var(--cube-size);
+  height: var(--cube-size);
+  perspective: var(--perspective);
+  perspective-origin: 50% 48%;
+  touch-action: none;
+  cursor: none;
+}
+
+.cube-shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -4%;
+  height: 10%;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  transform: translate3d(var(--nudge-x), var(--nudge-y), 0) scaleY(0.4);
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.cube-scene.is-motion .cube-shadow {
+  opacity: 0;
+}
+
+/* During flip: avoid per-frame layout-tree work from rounded clipped 3D faces */
+.cube-scene.is-motion .cube-face {
+  border-radius: 0;
+}
+
+.cube {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  /* Rest = silhouette nudge + pitch/yaw — flip keyframes must match exactly */
+  transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+    rotateX(var(--pitch)) rotateY(var(--yaw));
+  will-change: transform;
+  transition: none;
+}
+
+.cube-core {
+  position: absolute;
+  inset: 8%;
+  border-radius: 16%;
+  transform: translateZ(0);
+  pointer-events: none;
+  background: #ececec;
+}
+
+.cube[data-theme='black'] .cube-core {
+  background: #1a1a1a;
+}
+
+.cube-face {
+  --z: calc(var(--cube-size) / 2);
+  position: absolute;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  left: -1px;
+  top: -1px;
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--cube-size) * 0.16);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: #efefef;
+  color: #3f3f3f;
+}
+
+.cube[data-theme='black'] .cube-face {
+  background-color: #1c1c1c;
+  color: #c4c4c4;
+}
+
+.cube-face--front {
+  transform: translateZ(var(--z));
+}
+
+.cube-face--back {
+  transform: rotateY(180deg) translateZ(var(--z));
+}
+
+.cube-face--right {
+  transform: rotateY(90deg) translateZ(var(--z));
+}
+
+.cube-face--left {
+  transform: rotateY(-90deg) translateZ(var(--z));
+}
+
+.cube-face--top {
+  transform: rotateX(90deg) translateZ(var(--z));
+}
+
+.cube-face--bottom {
+  transform: rotateX(-90deg) translateZ(var(--z));
+}
+
+/* Upright numerals relative to the desk/camera view */
+.cube-face--top .face-number {
+  transform: rotate(180deg);
+}
+
+.cube-face--bottom .face-number {
+  transform: rotate(180deg);
+}
+
+.cube-face--back .face-number {
+  transform: rotate(180deg);
+}
+
+.cube-face--left .face-number {
+  transform: rotate(180deg);
+}
+
+.glass-bezel {
+  position: relative;
+  width: 78%;
+  height: 58%;
+  border-radius: 12%;
+  background: #050505;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 2px #222;
+}
+
+.cube-scene.is-motion .glass-bezel {
+  box-shadow: none;
+}
+
+.glass-led {
+  position: absolute;
+  top: 9%;
+  right: 9%;
+  width: 6.5%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #1a2a3a;
+  opacity: 0.4;
+}
+
+.glass-led.is-on {
+  background: #3aa0ff;
+  opacity: 1;
+}
+
+.cube-scene:not(.is-perf) .glass-led.is-on {
+  box-shadow: 0 0 6px 1px rgba(58, 160, 255, 0.45);
+}
+
+.face-number {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12em;
+  line-height: 1;
+}
+
+.face-number__value {
+  font-size: calc(var(--cube-size) * 0.3);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.face-number__unit {
+  font-size: calc(var(--cube-size) * 0.042);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  opacity: 0.5;
+}
+
+.led-row {
+  display: flex;
+  align-items: center;
+  gap: 0.14em;
+  direction: ltr;
+}
+
+.led-gap {
+  width: 0.32em;
+  height: 1.1em;
+  font-size: calc(var(--cube-size) * 0.145);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.led-gap::before {
+  content: '';
+  width: 0.1em;
+  height: 0.1em;
+  border-radius: 50%;
+  background: #d8d8d8;
+  opacity: 0.25;
+}
+
+.led-gap.is-blink::before {
+  animation: gap-blink 1s steps(1, end) infinite;
+}
+
+@keyframes gap-blink {
+  0%,
+  49% {
+    opacity: 0.55;
+  }
+  50%,
+  100% {
+    opacity: 0.12;
+  }
+}
+
+.led-digit {
+  position: relative;
+  width: 0.58em;
+  height: 1.05em;
+  font-size: calc(var(--cube-size) * 0.145);
+}
+
+.led-digit__seg {
+  position: absolute;
+  background: #1a1a1a;
+  opacity: 0.35;
+  border-radius: 0.12em;
+}
+
+.led-digit__seg.is-on {
+  background: #f0f0f0;
+  opacity: 1;
+}
+
+.led-digit__seg--a {
+  top: 0;
+  left: 14%;
+  right: 14%;
+  height: 11%;
+}
+.led-digit__seg--b {
+  top: 9%;
+  right: 0;
+  width: 13%;
+  height: 37%;
+}
+.led-digit__seg--c {
+  bottom: 9%;
+  right: 0;
+  width: 13%;
+  height: 37%;
+}
+.led-digit__seg--d {
+  bottom: 0;
+  left: 14%;
+  right: 14%;
+  height: 11%;
+}
+.led-digit__seg--e {
+  bottom: 9%;
+  left: 0;
+  width: 13%;
+  height: 37%;
+}
+.led-digit__seg--f {
+  top: 9%;
+  left: 0;
+  width: 13%;
+  height: 37%;
+}
+.led-digit__seg--g {
+  top: 44.5%;
+  left: 14%;
+  right: 14%;
+  height: 11%;
+}
+
+/* —— Quality flip: from/to use the same rest vars (no settle drift) —— */
+.cube.is-quality-flip {
+  transition: none;
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1.05, 0.28, 1);
+  animation-fill-mode: forwards;
+}
+
+.cube.flip-y-pos {
+  animation-name: quality-flip-y-pos;
+}
+.cube.flip-y-neg {
+  animation-name: quality-flip-y-neg;
+}
+.cube.flip-x-pos {
+  animation-name: quality-flip-x-pos;
+}
+.cube.flip-x-neg {
+  animation-name: quality-flip-x-neg;
+}
+
+@keyframes quality-flip-y-pos {
+  from {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  to {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 90deg));
+  }
+}
+@keyframes quality-flip-y-neg {
+  from {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  to {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 90deg));
+  }
+}
+@keyframes quality-flip-x-pos {
+  from {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  to {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 90deg)) rotateY(var(--yaw));
+  }
+}
+@keyframes quality-flip-x-neg {
+  from {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  to {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 90deg)) rotateY(var(--yaw));
+  }
+}
+
+/* —— Performance flip: 9 stepped keyframes from the same rest —— */
+.cube.is-perf-flip {
+  transition: none;
+  animation-duration: 480ms;
+  animation-timing-function: steps(1, end);
+  animation-fill-mode: forwards;
+}
+
+.cube.perf-y-pos {
+  animation-name: perf-flip-y-pos;
+}
+.cube.perf-y-neg {
+  animation-name: perf-flip-y-neg;
+}
+.cube.perf-x-pos {
+  animation-name: perf-flip-x-pos;
+}
+.cube.perf-x-neg {
+  animation-name: perf-flip-x-neg;
+}
+
+@keyframes perf-flip-y-pos {
+  0% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  12.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 11deg));
+  }
+  25% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 22deg));
+  }
+  37.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 36deg));
+  }
+  50% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 50deg));
+  }
+  62.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 64deg));
+  }
+  75% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 76deg));
+  }
+  87.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 86deg));
+  }
+  100% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 90deg));
+  }
+}
+
+@keyframes perf-flip-y-neg {
+  0% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  12.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 11deg));
+  }
+  25% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 22deg));
+  }
+  37.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 36deg));
+  }
+  50% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 50deg));
+  }
+  62.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 64deg));
+  }
+  75% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 76deg));
+  }
+  87.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 86deg));
+  }
+  100% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 90deg));
+  }
+}
+
+@keyframes perf-flip-x-pos {
+  0% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  12.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 11deg)) rotateY(var(--yaw));
+  }
+  25% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 22deg)) rotateY(var(--yaw));
+  }
+  37.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 36deg)) rotateY(var(--yaw));
+  }
+  50% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 50deg)) rotateY(var(--yaw));
+  }
+  62.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 64deg)) rotateY(var(--yaw));
+  }
+  75% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 76deg)) rotateY(var(--yaw));
+  }
+  87.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 86deg)) rotateY(var(--yaw));
+  }
+  100% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) - 90deg)) rotateY(var(--yaw));
+  }
+}
+
+@keyframes perf-flip-x-neg {
+  0% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(var(--pitch)) rotateY(var(--yaw));
+  }
+  12.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 11deg)) rotateY(var(--yaw));
+  }
+  25% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 22deg)) rotateY(var(--yaw));
+  }
+  37.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 36deg)) rotateY(var(--yaw));
+  }
+  50% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 50deg)) rotateY(var(--yaw));
+  }
+  62.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 64deg)) rotateY(var(--yaw));
+  }
+  75% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 76deg)) rotateY(var(--yaw));
+  }
+  87.5% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 86deg)) rotateY(var(--yaw));
+  }
+  100% {
+    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
+      rotateX(calc(var(--pitch) + 90deg)) rotateY(var(--yaw));
+  }
+}
+
+.chrome-stack {
+  position: absolute;
+  top: max(3vmin, 16px);
+  inset-inline-end: max(3vmin, 16px);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.theme-toggle,
+.view-toggle {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: #d1d5db;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.desk-stage:hover .theme-toggle,
+.desk-stage:hover .view-toggle,
+.desk-stage:focus-within .theme-toggle,
+.desk-stage:focus-within .view-toggle,
+.theme-toggle.is-touch-visible,
+.view-toggle.is-touch-visible {
+  opacity: 1;
+}
+
+.theme-toggle:active,
+.view-toggle:active {
+  opacity: 0.85;
+}
+
+.debug-overlay {
+  position: absolute;
+  top: max(3vmin, 12px);
+  inset-inline-start: max(3vmin, 12px);
+  z-index: 5;
+  min-width: 200px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #b8f5c5;
+  font: 12px/1.45 ui-monospace, Consolas, monospace;
+  pointer-events: none;
+  direction: ltr;
+  text-align: left;
+  white-space: pre;
+}
+
+.debug-overlay[hidden] {
+  display: none !important;
+}
