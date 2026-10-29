@@ -6,9 +6,11 @@
   height: 100%;
   display: grid;
   place-items: center;
-  padding: 8vmin;
+  /* Safe margin for chrome (≥48px controls) + silhouette breathing room */
+  padding: max(56px, 6vmin);
   background: #0a0a0a;
   cursor: none;
+  overflow: hidden;
 }
 
 .desk-hint {
@@ -31,118 +33,257 @@
   opacity: 0.85;
 }
 
-/* ~65% of shorter side; perspective from --perspective (px) */
+/* Edge length + perspective set from JS fit (silhouette-aware) */
 .cube-scene {
-  --cube-size: min(65vmin, calc(100vmin - 16vmin));
+  --cube-size: 280px;
   --yaw: -22deg;
   --pitch: -15deg;
-  --perspective: 1200px;
-  --nudge-x: calc(var(--cube-size) * -0.09);
-  --nudge-y: calc(var(--cube-size) * 0.055);
+  --perspective: 980px;
+  --nudge-x: 0px;
+  --nudge-y: 0px;
   position: relative;
   width: var(--cube-size);
   height: var(--cube-size);
   perspective: var(--perspective);
-  perspective-origin: 50% 48%;
+  perspective-origin: 50% 50%;
   touch-action: none;
   cursor: none;
 }
 
 .cube-shadow {
   position: absolute;
-  left: 18%;
-  right: 18%;
-  bottom: -4%;
+  left: 16%;
+  right: 16%;
+  bottom: -5%;
   height: 10%;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   transform: translate3d(var(--nudge-x), var(--nudge-y), 0) scaleY(0.4);
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .cube-scene.is-motion .cube-shadow {
   opacity: 0;
 }
 
-/* During flip: avoid per-frame layout-tree work from rounded clipped 3D faces */
-.cube-scene.is-motion .cube-face {
-  border-radius: 0;
+.cube-scene.is-motion .cube-face::after {
+  opacity: 0;
 }
 
 .cube {
+  --body: #efefef;
+  --ink: #3f3f3f;
   position: relative;
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
-  /* Rest = silhouette nudge + pitch/yaw — flip keyframes must match exactly */
   transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
     rotateX(var(--pitch)) rotateY(var(--yaw));
   will-change: transform;
   transition: none;
 }
 
-.cube-core {
-  position: absolute;
-  inset: 8%;
-  border-radius: 16%;
-  transform: translateZ(0);
-  pointer-events: none;
-  background: #ececec;
+.cube[data-theme='black'] {
+  --body: #1c1c1c;
+  --ink: #c8c8c8;
 }
 
-.cube[data-theme='black'] .cube-core {
-  background: #1a1a1a;
+/* Solid 6-face core — only during flips (hidden at rest so corners stay sealed) */
+.cube-core {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.cube-scene.is-motion .cube-core {
+  visibility: visible;
+}
+
+.cube-core-face {
+  --cz: calc(var(--cube-size) * 0.28);
+  position: absolute;
+  inset: 22%;
+  background: var(--body);
+  border-radius: calc(var(--cube-size) * 0.05);
+}
+
+.cube-core-face--front {
+  transform: translateZ(var(--cz));
+}
+.cube-core-face--back {
+  transform: rotateY(180deg) translateZ(var(--cz));
+}
+.cube-core-face--right {
+  transform: rotateY(90deg) translateZ(var(--cz));
+}
+.cube-core-face--left {
+  transform: rotateY(-90deg) translateZ(var(--cz));
+}
+.cube-core-face--top {
+  transform: rotateX(90deg) translateZ(var(--cz));
+}
+.cube-core-face--bottom {
+  transform: rotateX(-90deg) translateZ(var(--cz));
 }
 
 .cube-face {
+  /* Per-face Z bias avoids double-edge z-fighting at shared edges */
   --z: calc(var(--cube-size) / 2);
   position: absolute;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
-  left: -1px;
-  top: -1px;
+  /*
+   * Heavy overlap (~11% each side) + body-color bleed seals AA gaps at
+   * front/right and top/front (LED) corners without showing the core.
+   */
+  width: calc(100% + var(--cube-size) * 0.22);
+  height: calc(100% + var(--cube-size) * 0.22);
+  left: calc(var(--cube-size) * -0.11);
+  top: calc(var(--cube-size) * -0.11);
   display: grid;
   place-items: center;
   border-radius: calc(var(--cube-size) * 0.16);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  background-color: #efefef;
-  color: #3f3f3f;
+  background-color: var(--body);
+  color: var(--ink);
+  overflow: hidden;
+  border: none;
+  outline: none;
+  /* Soft body bleed fills sub-pixel seams between adjacent faces */
+  box-shadow: 0 0 0 calc(var(--cube-size) * 0.035) var(--body);
 }
 
-.cube[data-theme='black'] .cube-face {
-  background-color: #1c1c1c;
-  color: #c4c4c4;
+/* Static per-face shading (settled only; disabled mid-flip) */
+.cube-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 1;
+  z-index: 0;
+}
+
+.cube-face--front::after {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(0, 0, 0, 0.08) 48%,
+    rgba(0, 0, 0, 0.16) 100%
+  );
+}
+
+.cube-face--top::after {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+}
+
+.cube-face--right::after {
+  /* Avoid a bright near-edge that reads as a seam against the front face */
+  background: linear-gradient(
+    95deg,
+    rgba(0, 0, 0, 0.14) 0%,
+    rgba(0, 0, 0, 0.24) 100%
+  );
+}
+
+.cube-face--left::after {
+  background: linear-gradient(
+    265deg,
+    rgba(0, 0, 0, 0.06) 0%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.cube-face--bottom::after {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.cube-face--back::after {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.cube[data-theme='black'] .cube-face--front::after {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+}
+
+.cube[data-theme='black'] .cube-face--top::after {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+}
+
+.cube[data-theme='black'] .cube-face--right::after {
+  background: linear-gradient(
+    95deg,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
 }
 
 .cube-face--front {
-  transform: translateZ(var(--z));
+  /* Proud so front owns shared edges (kills light seam vs right) */
+  transform: translateZ(calc(var(--z) + 1px));
 }
 
 .cube-face--back {
-  transform: rotateY(180deg) translateZ(var(--z));
+  transform: rotateY(180deg) translateZ(calc(var(--z) - 1px));
 }
 
 .cube-face--right {
-  transform: rotateY(90deg) translateZ(var(--z));
+  /* Recessed under front/top — removes double edge on top of right */
+  transform: rotateY(90deg) translateZ(calc(var(--z) - 3.5px));
 }
 
 .cube-face--left {
-  transform: rotateY(-90deg) translateZ(var(--z));
+  transform: rotateY(-90deg) translateZ(calc(var(--z) - 1.5px));
 }
 
 .cube-face--top {
-  transform: rotateX(90deg) translateZ(var(--z));
+  /* Proud at the LED corner so top/front notch closes */
+  transform: rotateX(90deg) translateZ(calc(var(--z) + 1px));
 }
 
 .cube-face--bottom {
-  transform: rotateX(-90deg) translateZ(var(--z));
+  transform: rotateX(-90deg) translateZ(calc(var(--z) - 2px));
 }
 
-/* Upright numerals relative to the desk/camera view */
+/*
+ * Numeral orientation at rest (glyph “up” toward the top of each physical face):
+ * - Top: no 180° — top of glyph toward back of cube (readable from front/above)
+ * - Right: upright on the side face
+ * - Left/back/bottom: 180° so ink isn’t mirrored when those faces are viewed
+ */
 .cube-face--top .face-number {
-  transform: rotate(180deg);
+  transform: rotate(0deg);
+}
+
+.cube-face--top .face-number__value {
+  /* ~60–70% of top-face width for two digits */
+  font-size: calc(var(--cube-size) * 0.52);
+}
+
+.cube-face--top .face-number__unit {
+  font-size: calc(var(--cube-size) * 0.055);
+}
+
+.cube-face--right .face-number {
+  transform: rotate(0deg) scale(0.92, 1.02);
+}
+
+.cube-face--left .face-number {
+  transform: rotate(180deg) scale(0.92, 1.02);
 }
 
 .cube-face--bottom .face-number {
@@ -153,19 +294,17 @@
   transform: rotate(180deg);
 }
 
-.cube-face--left .face-number {
-  transform: rotate(180deg);
-}
-
 .glass-bezel {
   position: relative;
-  width: 78%;
-  height: 58%;
-  border-radius: 12%;
+  z-index: 1;
+  /* ~8% frame around glass */
+  width: 86%;
+  height: 72%;
+  border-radius: 14%;
   background: #050505;
   display: grid;
   place-items: center;
-  box-shadow: inset 0 0 0 2px #222;
+  box-shadow: none;
 }
 
 .cube-scene.is-motion .glass-bezel {
@@ -174,13 +313,16 @@
 
 .glass-led {
   position: absolute;
-  top: 9%;
-  right: 9%;
-  width: 6.5%;
+  z-index: 2;
+  /* On the front frame, outside the glass — top-left like the reference */
+  top: 4.5%;
+  left: 4.5%;
+  width: 4.8%;
   aspect-ratio: 1;
   border-radius: 50%;
   background: #1a2a3a;
-  opacity: 0.4;
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .glass-led.is-on {
@@ -189,10 +331,12 @@
 }
 
 .cube-scene:not(.is-perf) .glass-led.is-on {
-  box-shadow: 0 0 6px 1px rgba(58, 160, 255, 0.45);
+  box-shadow: 0 0 5px 1px rgba(58, 160, 255, 0.45);
 }
 
 .face-number {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -201,14 +345,14 @@
 }
 
 .face-number__value {
-  font-size: calc(var(--cube-size) * 0.3);
+  font-size: calc(var(--cube-size) * 0.28);
   font-weight: 600;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
 
 .face-number__unit {
-  font-size: calc(var(--cube-size) * 0.042);
+  font-size: calc(var(--cube-size) * 0.04);
   font-weight: 600;
   letter-spacing: 0.18em;
   opacity: 0.5;
@@ -230,27 +374,19 @@
   justify-content: center;
 }
 
-.led-gap::before {
-  content: '';
-  width: 0.1em;
-  height: 0.1em;
-  border-radius: 50%;
-  background: #d8d8d8;
-  opacity: 0.25;
-}
-
-.led-gap.is-blink::before {
+/* Spatial gap only (no colon glyphs). Subtle blink via opacity on the spacer. */
+.led-gap.is-blink {
   animation: gap-blink 1s steps(1, end) infinite;
 }
 
 @keyframes gap-blink {
   0%,
   49% {
-    opacity: 0.55;
+    opacity: 1;
   }
   50%,
   100% {
-    opacity: 0.12;
+    opacity: 0.25;
   }
 }
 
@@ -258,7 +394,8 @@
   position: relative;
   width: 0.58em;
   height: 1.05em;
-  font-size: calc(var(--cube-size) * 0.145);
+  /* MM SS group ≈ 65–70% of glass width */
+  font-size: calc(var(--cube-size) * 0.255);
 }
 
 .led-digit__seg {
@@ -316,249 +453,12 @@
   height: 11%;
 }
 
-/* —— Quality flip: from/to use the same rest vars (no settle drift) —— */
-.cube.is-quality-flip {
-  transition: none;
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.22, 1.05, 0.28, 1);
-  animation-fill-mode: forwards;
-}
-
-.cube.flip-y-pos {
-  animation-name: quality-flip-y-pos;
-}
-.cube.flip-y-neg {
-  animation-name: quality-flip-y-neg;
-}
-.cube.flip-x-pos {
-  animation-name: quality-flip-x-pos;
-}
-.cube.flip-x-neg {
-  animation-name: quality-flip-x-neg;
-}
-
-@keyframes quality-flip-y-pos {
-  from {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  to {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 90deg));
-  }
-}
-@keyframes quality-flip-y-neg {
-  from {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  to {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 90deg));
-  }
-}
-@keyframes quality-flip-x-pos {
-  from {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  to {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 90deg)) rotateY(var(--yaw));
-  }
-}
-@keyframes quality-flip-x-neg {
-  from {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  to {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 90deg)) rotateY(var(--yaw));
-  }
-}
-
-/* —— Performance flip: 9 stepped keyframes from the same rest —— */
-.cube.is-perf-flip {
-  transition: none;
-  animation-duration: 480ms;
-  animation-timing-function: steps(1, end);
-  animation-fill-mode: forwards;
-}
-
-.cube.perf-y-pos {
-  animation-name: perf-flip-y-pos;
-}
-.cube.perf-y-neg {
-  animation-name: perf-flip-y-neg;
-}
-.cube.perf-x-pos {
-  animation-name: perf-flip-x-pos;
-}
-.cube.perf-x-neg {
-  animation-name: perf-flip-x-neg;
-}
-
-@keyframes perf-flip-y-pos {
-  0% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  12.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 11deg));
-  }
-  25% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 22deg));
-  }
-  37.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 36deg));
-  }
-  50% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 50deg));
-  }
-  62.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 64deg));
-  }
-  75% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 76deg));
-  }
-  87.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 86deg));
-  }
-  100% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) - 90deg));
-  }
-}
-
-@keyframes perf-flip-y-neg {
-  0% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  12.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 11deg));
-  }
-  25% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 22deg));
-  }
-  37.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 36deg));
-  }
-  50% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 50deg));
-  }
-  62.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 64deg));
-  }
-  75% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 76deg));
-  }
-  87.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 86deg));
-  }
-  100% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(calc(var(--yaw) + 90deg));
-  }
-}
-
-@keyframes perf-flip-x-pos {
-  0% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  12.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 11deg)) rotateY(var(--yaw));
-  }
-  25% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 22deg)) rotateY(var(--yaw));
-  }
-  37.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 36deg)) rotateY(var(--yaw));
-  }
-  50% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 50deg)) rotateY(var(--yaw));
-  }
-  62.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 64deg)) rotateY(var(--yaw));
-  }
-  75% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 76deg)) rotateY(var(--yaw));
-  }
-  87.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 86deg)) rotateY(var(--yaw));
-  }
-  100% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) - 90deg)) rotateY(var(--yaw));
-  }
-}
-
-@keyframes perf-flip-x-neg {
-  0% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(var(--pitch)) rotateY(var(--yaw));
-  }
-  12.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 11deg)) rotateY(var(--yaw));
-  }
-  25% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 22deg)) rotateY(var(--yaw));
-  }
-  37.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 36deg)) rotateY(var(--yaw));
-  }
-  50% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 50deg)) rotateY(var(--yaw));
-  }
-  62.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 64deg)) rotateY(var(--yaw));
-  }
-  75% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 76deg)) rotateY(var(--yaw));
-  }
-  87.5% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 86deg)) rotateY(var(--yaw));
-  }
-  100% {
-    transform: translate3d(var(--nudge-x), var(--nudge-y), 0)
-      rotateX(calc(var(--pitch) + 90deg)) rotateY(var(--yaw));
-  }
-}
-
 .chrome-stack {
   position: absolute;
-  top: max(3vmin, 16px);
-  inset-inline-end: max(3vmin, 16px);
+  /* Physical top-right (ignore page RTL) so controls stay on-screen */
+  top: max(20px, 3vmin);
+  right: max(20px, 3vmin);
+  left: auto;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -596,8 +496,9 @@
 
 .debug-overlay {
   position: absolute;
-  top: max(3vmin, 12px);
-  inset-inline-start: max(3vmin, 12px);
+  top: max(20px, 3vmin);
+  left: max(20px, 3vmin);
+  right: auto;
   z-index: 5;
   min-width: 200px;
   padding: 10px 12px;

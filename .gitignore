@@ -7,8 +7,9 @@ dist-ssr/
 src-tauri/target/
 target/
 
-# Benchmarks (raw / large)
+# Benchmarks / screenshots (raw / large)
 benchmarks/
+screenshots/
 *.trace.json
 *.chrometrace
 

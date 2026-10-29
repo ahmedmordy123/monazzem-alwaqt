@@ -4,9 +4,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type RefObject,
 } from 'react'
+import { useSilhouetteFit } from '../../hooks/useSilhouetteFit'
 import {
   DEFAULT_FACES_MIN,
   faceLabel,
@@ -42,8 +42,8 @@ type CubeProps = {
   facesMin?: readonly number[]
   perfMode: boolean
   view: ViewAngles
-  viewStyle?: CSSProperties
   onFlipStats?: (stats: { maxFrameMs: number; frameCount: number }) => void
+  onFitChange?: (edgePx: number) => void
 }
 
 function faceMinutes(
@@ -87,8 +87,8 @@ export function Cube({
   facesMin = DEFAULT_FACES_MIN,
   perfMode,
   view,
-  viewStyle,
   onFlipStats,
+  onFitChange,
 }: CubeProps) {
   const sceneRef = useRef<HTMLDivElement>(null)
   const cubeRef = useRef<HTMLDivElement>(null)
@@ -114,6 +114,20 @@ export function Cube({
   const backRef = useRef<HTMLSpanElement>(null)
   const ledRootRef = useRef<HTMLDivElement>(null)
   const ledRef = useRef<HTMLSpanElement>(null)
+
+  const fit = useSilhouetteFit(
+    '.desk-stage',
+    sceneRef,
+    cubeRef,
+    view,
+    [theme],
+  )
+  const fitRef = useRef(fit)
+  fitRef.current = fit
+
+  useEffect(() => {
+    onFitChange?.(fit.edgePx)
+  }, [fit.edgePx, onFitChange])
 
   useEffect(() => {
     perfModeRef.current = perfMode
@@ -207,13 +221,12 @@ export function Cube({
       const gen = ++settledGen.current
       const flipIndex = flipSeqRef.current++
       const v = viewRef.current
+      const f = fitRef.current
       const usePerf = perfModeRef.current
       const duration = usePerf ? PERF_FLIP_MS : QUALITY_FLIP_MS
 
-      // Layout reads + chrome class changes BEFORE the measured window
-      const size = scene.clientWidth
-      const nudgeXPx = v.nudgeX * size
-      const nudgeYPx = v.nudgeY * size
+      const nudgeXPx = v.nudgeX * f.edgePx + f.fitOffsetX
+      const nudgeYPx = v.nudgeY * f.edgePx + f.fitOffsetY
       const rest = xf(v.yaw, v.pitch, nudgeXPx, nudgeYPx)
       const dYaw = axis === 'y' ? direction * -90 : 0
       const dPitch = axis === 'x' ? direction * -90 : 0
@@ -238,7 +251,6 @@ export function Cube({
 
         animRef.current?.cancel()
         animRef.current = null
-        // Drop WAAPI/inline transform so CSS rest (vars) applies — no drift
         cube.style.transform = ''
         cube.style.willChange = ''
 
@@ -258,11 +270,9 @@ export function Cube({
       const finish = () => {
         if (gen !== settledGen.current) return
         if (!busyRef.current) return
-        // Close measured window before any settle DOM/layout work
         markEnd()
         busyRef.current = false
         stopMeasure()
-        // Defer settle DOM to the next frame so it stays outside the trace window
         requestAnimationFrame(() => settleDom())
       }
 
@@ -287,7 +297,6 @@ export function Cube({
         keyframes = [{ transform: rest }, { transform: end }]
       }
 
-      // Concrete transforms (no CSS-var keyframes). Promote layer before play.
       cube.style.willChange = 'transform'
       const anim = cube.animate(keyframes, {
         duration,
@@ -299,7 +308,6 @@ export function Cube({
       anim.pause()
       anim.currentTime = 0
 
-      // Play first; mark start two frames later so setup Layout stays outside the window
       requestAnimationFrame(() => {
         if (gen !== settledGen.current) return
         anim.play()
@@ -346,22 +354,28 @@ export function Cube({
     <div
       ref={sceneRef}
       className={`cube-scene${perfMode ? ' is-perf' : ''}`}
-      style={viewStyle}
       role="application"
       aria-label="Flip cube timer"
       data-testid="cube-scene"
     >
       <div className="cube-shadow" />
       <div ref={cubeRef} className="cube" data-theme={theme} data-testid="cube">
-        <div className="cube-core" aria-hidden="true" />
+        <div className="cube-core" aria-hidden="true">
+          <div className="cube-core-face cube-core-face--front" />
+          <div className="cube-core-face cube-core-face--back" />
+          <div className="cube-core-face cube-core-face--right" />
+          <div className="cube-core-face cube-core-face--left" />
+          <div className="cube-core-face cube-core-face--top" />
+          <div className="cube-core-face cube-core-face--bottom" />
+        </div>
 
         <div className="cube-face cube-face--front">
+          <span
+            ref={ledRef}
+            className={`glass-led${running ? ' is-on' : ''}`}
+            aria-hidden="true"
+          />
           <div className="glass-bezel">
-            <span
-              ref={ledRef}
-              className={`glass-led${running ? ' is-on' : ''}`}
-              aria-hidden="true"
-            />
             <div ref={ledRootRef} className="led-row" aria-label={`${mm} ${ss}`}>
               <LedDigit char={mm[0] ?? '0'} />
               <LedDigit char={mm[1] ?? '0'} />

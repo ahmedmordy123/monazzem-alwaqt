@@ -1,17 +1,10 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Cube, type CubeTheme } from './components/Cube/Cube'
 import {
   applyPreset,
+  clamp,
   loadView,
   saveView,
-  viewToCssVars,
   type ViewAngles,
   type ViewMode,
 } from './lib/viewSettings'
@@ -26,6 +19,7 @@ export default function App() {
   const [fps, setFps] = useState(0)
   const [lastFlipMaxMs, setLastFlipMaxMs] = useState(0)
   const [lastFlipFrames, setLastFlipFrames] = useState(0)
+  const [edgePx, setEdgePx] = useState(0)
   const [view, setView] = useState<ViewAngles>(() =>
     typeof window !== 'undefined' ? loadView() : applyPreset('angled'),
   )
@@ -54,7 +48,6 @@ export default function App() {
     let raf = 0
     const loop = (now: number) => {
       frames += 1
-      // Avoid React commits during a flip (keeps the flip window free of layout work)
       if (now - last >= 500 && !window.__flipCube?.isFlipping()) {
         setFps(Math.round((frames * 1000) / (now - last)))
         frames = 0
@@ -93,7 +86,7 @@ export default function App() {
 
       const stepYaw = e.shiftKey ? 2 : 1
       const stepPitch = e.shiftKey ? 2 : 1
-      const stepPersp = e.shiftKey ? 100 : 50
+      const stepFactor = e.shiftKey ? 0.25 : 0.1
       const stepNudge = e.shiftKey ? 0.02 : 0.01
 
       setView((cur) => {
@@ -123,10 +116,8 @@ export default function App() {
           case 'Z':
             next = {
               ...cur,
-              perspective: clamp(
-                cur.perspective - stepPersp,
-                600,
-                2400,
+              perspectiveFactor: round2(
+                clamp(cur.perspectiveFactor - stepFactor, 3, 5),
               ),
             }
             break
@@ -134,10 +125,8 @@ export default function App() {
           case 'C':
             next = {
               ...cur,
-              perspective: clamp(
-                cur.perspective + stepPersp,
-                600,
-                2400,
+              perspectiveFactor: round2(
+                clamp(cur.perspectiveFactor + stepFactor, 3, 5),
               ),
             }
             break
@@ -185,10 +174,7 @@ export default function App() {
     [],
   )
 
-  const viewStyle = useMemo(
-    () => viewToCssVars(view) as CSSProperties,
-    [view],
-  )
+  const perspPx = Math.round(edgePx * view.perspectiveFactor)
 
   const debugText = [
     `FPS ${fps}`,
@@ -198,7 +184,8 @@ export default function App() {
     `View ${view.mode} (V)`,
     `yaw ${view.yaw}°  [Q/E]`,
     `pitch ${view.pitch}°  [R/F]`,
-    `persp ${view.perspective}px  [Z/C]`,
+    `perspFactor ${view.perspectiveFactor}× (~${perspPx}px)  [Z/C]`,
+    `edge ${Math.round(edgePx)}px (auto-fit)`,
     `nudgeX ${view.nudgeX}  [T/G]`,
     `nudgeY ${view.nudgeY}  [Y/H]`,
     `reset preset (0)  Debug (D)`,
@@ -210,9 +197,7 @@ export default function App() {
         <button
           type="button"
           className={`view-toggle${touchChrome ? ' is-touch-visible' : ''}`}
-          onClick={() =>
-            setMode(view.mode === 'angled' ? 'flat' : 'angled')
-          }
+          onClick={() => setMode(view.mode === 'angled' ? 'flat' : 'angled')}
           aria-label="Toggle view angle"
         >
           {view.mode === 'angled' ? 'Flat' : 'Angled'}
@@ -239,8 +224,8 @@ export default function App() {
         theme={theme}
         perfMode={perfMode}
         view={view}
-        viewStyle={viewStyle}
         onFlipStats={onFlipStats}
+        onFitChange={setEdgePx}
       />
 
       <p className={`desk-hint${hintVisible ? ' is-visible' : ''}`}>
@@ -254,10 +239,10 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10
 }
 
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
 }
 
-function clamp(n: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, n))
+function round3(n: number): number {
+  return Math.round(n * 1000) / 1000
 }
