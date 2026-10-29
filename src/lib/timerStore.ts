@@ -17,13 +17,18 @@ export type AppSettings = {
   theme: 'white' | 'black'
   language: 'ar' | 'en'
   sound_enabled: boolean
+  sound_path: string | null
   view_mode: 'angled' | 'flat'
+  display_mode: 'deskcube' | 'widget'
   yaw: number
   pitch: number
   perspective_factor: number
   perf_mode: boolean
   autostart: boolean
   target_monitor_id: string | null
+  widget_position: { x: number; y: number } | null
+  idle_dim_minutes: number
+  nudge_offsets: { x: number; y: number }
 }
 
 type AppSnapshot = {
@@ -40,13 +45,18 @@ const fallbackSettings: AppSettings = {
   theme: 'white',
   language: 'ar',
   sound_enabled: true,
+  sound_path: null,
   view_mode: 'angled',
+  display_mode: 'deskcube',
   yaw: -22,
   pitch: -19,
   perspective_factor: 4.2,
   perf_mode: false,
   autostart: false,
   target_monitor_id: null,
+  widget_position: null,
+  idle_dim_minutes: 10,
+  nudge_offsets: { x: 8, y: 8 },
 }
 
 const fallbackTimer: TimerSnapshot = {

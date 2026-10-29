@@ -32,19 +32,44 @@ pub enum ViewMode {
     Flat,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DisplayMode {
+    DeskCube,
+    Widget,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WidgetPosition {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NudgeOffsets {
+    pub x: i32,
+    pub y: i32,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppSettings {
     pub face_minutes: [u64; FACE_COUNT],
     pub theme: Theme,
     pub language: Language,
     pub sound_enabled: bool,
+    pub sound_path: Option<String>,
     pub view_mode: ViewMode,
+    pub display_mode: DisplayMode,
     pub yaw: f64,
     pub pitch: f64,
     pub perspective_factor: f64,
     pub perf_mode: bool,
     pub autostart: bool,
     pub target_monitor_id: Option<String>,
+    pub widget_position: Option<WidgetPosition>,
+    pub idle_dim_minutes: u64,
+    pub nudge_offsets: NudgeOffsets,
 }
 
 impl Default for AppSettings {
@@ -54,13 +79,18 @@ impl Default for AppSettings {
             theme: Theme::White,
             language: Language::Ar,
             sound_enabled: true,
+            sound_path: None,
             view_mode: ViewMode::Angled,
+            display_mode: DisplayMode::DeskCube,
             yaw: -22.0,
             pitch: -19.0,
             perspective_factor: 4.2,
             perf_mode: false,
             autostart: false,
             target_monitor_id: None,
+            widget_position: None,
+            idle_dim_minutes: 10,
+            nudge_offsets: NudgeOffsets { x: 8, y: 8 },
         }
     }
 }
@@ -80,6 +110,9 @@ impl AppSettings {
         if !self.perspective_factor.is_finite() {
             self.perspective_factor = 4.2;
         }
+        self.idle_dim_minutes = self.idle_dim_minutes.min(240);
+        self.nudge_offsets.x = self.nudge_offsets.x.clamp(-64, 64);
+        self.nudge_offsets.y = self.nudge_offsets.y.clamp(-64, 64);
         self
     }
 

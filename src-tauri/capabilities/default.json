@@ -3,5 +3,12 @@
   "identifier": "default",
   "description": "Default permissions for the main timer window",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:allow-listen", "core:event:allow-unlisten"]
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "notification:default"
+  ]
 }

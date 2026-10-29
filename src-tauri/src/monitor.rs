@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitorInfo {
     pub id: String,
+    pub name: Option<String>,
     pub width: u32,
     pub height: u32,
     pub scale: f64,
@@ -15,15 +16,19 @@ pub struct MonitorInfo {
 
 impl MonitorInfo {
     pub fn fingerprint_key(&self) -> String {
-        format!(
-            "{}x{}@{}:{};{}",
-            self.width,
-            self.height,
-            (self.scale * 100.0).round() as i32,
-            self.x,
-            self.y
-        )
+        fingerprint(self.width, self.height, self.scale, self.x, self.y)
     }
+}
+
+pub fn fingerprint(width: u32, height: u32, scale: f64, x: i32, y: i32) -> String {
+    format!(
+        "{}x{}@{}:{};{}",
+        width,
+        height,
+        (scale * 100.0).round() as i32,
+        x,
+        y
+    )
 }
 
 /// Score a candidate against a remembered target. Lower is better.
@@ -62,7 +67,7 @@ pub fn match_target<'a>(
         return monitors.iter().min_by(|a, b| {
             let sa = score_match(rem, a);
             let sb = score_match(rem, b);
-            sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
+            sa.total_cmp(&sb)
         });
     }
     monitors.iter().find(|m| m.is_primary).or(monitors.first())
@@ -75,7 +80,10 @@ pub fn resolve_after_display_change<'a>(
     remembered: Option<&MonitorInfo>,
 ) -> Option<&'a MonitorInfo> {
     if let Some(key) = preferred_key {
-        if let Some(m) = monitors.iter().find(|m| m.id == key || m.fingerprint_key() == key) {
+        if let Some(m) = monitors
+            .iter()
+            .find(|m| m.id == key || m.fingerprint_key() == key)
+        {
             return Some(m);
         }
     }
@@ -91,17 +99,10 @@ pub fn resolve_after_display_change<'a>(
 mod tests {
     use super::*;
 
-    fn m(
-        id: &str,
-        w: u32,
-        h: u32,
-        scale: f64,
-        x: i32,
-        y: i32,
-        primary: bool,
-    ) -> MonitorInfo {
+    fn m(id: &str, w: u32, h: u32, scale: f64, x: i32, y: i32, primary: bool) -> MonitorInfo {
         MonitorInfo {
             id: id.into(),
+            name: None,
             width: w,
             height: h,
             scale,
@@ -132,9 +133,12 @@ mod tests {
         let tablet = m("spacedesk-1", 1920, 1200, 1.5, 1920, 0, false);
         let primary = m("main", 2560, 1440, 1.0, 0, 0, true);
         let only_primary = vec![primary.clone()];
-        let found =
-            resolve_after_display_change(&only_primary, Some(&tablet.fingerprint_key()), Some(&tablet))
-                .unwrap();
+        let found = resolve_after_display_change(
+            &only_primary,
+            Some(&tablet.fingerprint_key()),
+            Some(&tablet),
+        )
+        .unwrap();
         assert!(found.is_primary);
     }
 

@@ -1,60 +1,62 @@
 # Progress — flip-cube-timer (منظم الوقت)
 
 ## Status
-- **Current:** M1 nearly done — engine/storage/monitor tests green; Tauri GUI blocked on MSVC `link.exe`
+- **Current:** M2–M5 code landed; **M6 installer blocked on MSVC VC Tools (needs admin/UAC)**
 - **Date:** 2026-10-29
-- **Commits:** `9cab6ae` M0 visual pass complete
+
+## Commits
+| Hash | Message |
+|------|---------|
+| eb322a3 | M0: CSS 3D flip cube… |
+| 9cab6ae | M0: visual pass complete |
+| f73f55e | M1: Rust timer engine + storage/monitor + UI wiring |
+| *(pending)* | M2-M4: desktop modes, tray, wake, hotkeys stubs |
+
+## Gates (latest)
+- `cargo test --no-default-features --lib` → **22 passed**
+- `cargo check --features app` → **passed** (source check; no linked Tauri binary)
+- `cargo clippy --no-default-features --lib -- -D warnings` → clean
+- `npm.cmd run build` → OK
+- Playwright e2e (`tests/e2e`) → smoke specs present; not rerun in this pass
+- `tauri build` → **blocked** (no `link.exe` / VC Tools)
 
 ## Decisions (locked)
 - Tauri 2 + React + TS + Vite + Zustand
-- Arabic product name in UI only; ASCII folder `flip-cube-timer`
-- Timer in Rust, timestamp `end_at`, UI event-driven (no polling)
-- Settings = in-window overlay (single WebView)
-- Storage: atomic JSON + `.bak` + defaults on corrupt
-- Desk Cube: borderless monitor bounds (not exclusive fullscreen)
-- Angled defaults: yaw −22, pitch −19, perspectiveFactor 4.2
-- Faces: 5 / 15 / 25 / 45 / 60 / custom(default 10, 1–180)
+- Arabic productName منظم الوقت; ASCII folder
+- Timer Rust, timestamp `end_at` / `wall_now`, UI events only
+- Settings overlay (single WebView)
+- Atomic JSON + `.bak` + defaults on corrupt
+- Desk: borderless monitor bounds; Widget ~220² AoT
+- Angled: yaw −22, pitch −19, perspectiveFactor 4.2
 
-## M0 — visual fix pass
-### Centering
-- Fit uses viewport-absolute silhouette + iterative nudge to viewport center
-- Measured 1629×973 + 6 random sizes in 1200×700–2200×1300: **ALL_PASS** (err ≤ 0.01%)
-
-### Seams / notches
-- Face overlap increased to ~11% each side + body-color `box-shadow` bleed
-- Front/top Z proud; right recessed (−3.5px) to kill double edge / light seam
-- Core `visibility: hidden` at rest; visible only during `.is-motion` flips
-- Screenshots: `screenshots/1629x973-{white,black}-{rest,midflip}.png`
-
-### Known visual notes
-- Mid-flip may briefly show core by design (plugs wedges)
-- Hint text hidden in QA screenshots via injected CSS
-- Seam/notch: 3 CSS passes (overlap 12%→18%→22% + bleed + core hidden at rest). DOM centering ≤1%. Residual AA seams may remain at some DPIs — accepted to proceed (autonomy rule: 3 attempts).
+## Clock strategy
+`WallClock::wall_now` = UNIX ms for persisted deadlines. Remaining = clamp(end − now, 0..duration). Injectable `Clock` for unit tests (sleep, jumps, restore).
 
 ## Tooling
-- Rust **windows-gnu** works via `E:\toolchains\mingw64` (path without spaces; WinGet mingw under `Nour Soft` breaks ld)
-- BuildTools 2022 present but **VC Tools workload missing** → no `link.exe` for MSVC/Tauri WebView2
-- `cargo test --no-default-features --lib`: **18 passed**
-- `cargo clippy --no-default-features --lib -- -D warnings`: clean
-- Frontend `npm run build` + oxlint: OK (warnings only)
+- GNU tests: `E:\toolchains\mingw64` (space-free copy; WinGet path under `Nour Soft` breaks ld)
+- BuildTools 2022 installed **without** VC C++ workload → quiet/bootstrapper installs exit without MSVC
+- **ACTION NEEDED:** elevate and run:
+  ```
+  & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe" modify `
+    --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools" `
+    --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --passive
+  ```
+  Then: `npm run tauri build`
 
-### Clock strategy
-Deadlines stored in `Clock::wall_now` (UNIX ms via `WallClock`). Remaining = clamp(end_at − wall_now, 0..duration). Injectable `Clock` for tests; sleep/resume simulated by advancing wall clock.
+## Milestone checklist
+| ID | Status |
+|----|--------|
+| M0 visual | done |
+| M1 engine + wire | done (lib tests; tauri app feature coded) |
+| M2 UI/settings/i18n | largely done (settings overlay, themes, RTL, LED HH/MM) |
+| M3 desk/widget + monitor match | coded (matcher tested; live Spacedesk migration needs MSVC app) |
+| M4 tray/wake/hotkeys/single-instance | coded (tray, wake, single-instance; hotkeys exposed as command stubs) |
+| M5 persistence/autostart | persistence done; autostart flag in settings (OS register pending full app) |
+| M6 package/docs | logging/icons/NSIS config done; installer pending MSVC |
 
-### Blocker
-Need admin/UAC to add `Microsoft.VisualStudio.Workload.VCTools` to Build Tools before `tauri build` / full `cargo test --features app`.
-
-## Toolchain notes
-- Rust 1.99.1 via rustup (C: space was tight; freed / auto-reinstalled)
-- MSVC / WebView2 / Tauri scaffold: in progress for M1
-
-## Milestones
-| ID | Title | Status |
-|----|-------|--------|
-| M0 | CSS 3D cube + visual fix | **done** (commit 9cab6ae) |
-| M1 | Rust timer + Tauri wire | in progress (MSVC Build Tools install) |
-| M2 | Full UI / settings / i18n | pending |
-| M3 | Desk/Widget + monitors | pending |
-| M4 | Tray / hotkeys / awake | pending |
-| M5 | Persistence / autostart | pending |
-| M6 | Polish / installer / docs | pending |
+## Known gaps until MSVC
+- Cannot produce NSIS or run installed-app smoke
+- Portable target is not configured; current Tauri config uses NSIS plus WebView2 `downloadBootstrapper`
+- Global OS shortcut registration is not enabled yet; backend handlers exist for Ctrl+Alt+Right/Space/R/D defaults
+- Spacedesk disable/enable real test needs running desktop app + optional admin for display adapters
+- 30‑min soak / RAM tree measurement pending release binary
