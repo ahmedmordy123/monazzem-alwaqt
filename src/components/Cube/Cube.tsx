@@ -10,9 +10,10 @@ import { useSilhouetteFit } from '../../hooks/useSilhouetteFit'
 import {
   DEFAULT_FACES_MIN,
   faceLabel,
-  formatMmSs,
+  formatTimerMs,
   type FaceIndex,
 } from '../../lib/faces'
+import type { TimerSnapshot } from '../../lib/timerStore'
 import type { ViewAngles } from '../../lib/viewSettings'
 import { useCubeInteraction } from './useCubeInteraction'
 
@@ -42,6 +43,10 @@ type CubeProps = {
   facesMin?: readonly number[]
   perfMode: boolean
   view: ViewAngles
+  timer: TimerSnapshot
+  onTap?: () => void
+  onReset?: () => void
+  onFlipSettled?: (face: FaceIndex) => void
   onFlipStats?: (stats: { maxFrameMs: number; frameCount: number }) => void
   onFitChange?: (edgePx: number) => void
 }
@@ -87,6 +92,10 @@ export function Cube({
   facesMin = DEFAULT_FACES_MIN,
   perfMode,
   view,
+  timer,
+  onTap,
+  onReset,
+  onFlipSettled,
   onFlipStats,
   onFitChange,
 }: CubeProps) {
@@ -97,6 +106,8 @@ export function Cube({
   const activeFaceRef = useRef<FaceIndex>(0)
   const perfModeRef = useRef(perfMode)
   const viewRef = useRef(view)
+  const timerStateRef = useRef(timer.state)
+  const onFlipSettledRef = useRef(onFlipSettled)
   const animRef = useRef<Animation | null>(null)
   const onFlipStatsRef = useRef(onFlipStats)
   const lastStatsRef = useRef<{ maxFrameMs: number; frameCount: number } | null>(
@@ -104,8 +115,9 @@ export function Cube({
   )
   const flipSeqRef = useRef(0)
 
-  const [activeFace, setActiveFace] = useState<FaceIndex>(0)
-  const [running, setRunning] = useState(true)
+  const [activeFace, setActiveFace] = useState<FaceIndex>(
+    clampFace(timer.active_face),
+  )
 
   const topRef = useRef<HTMLSpanElement>(null)
   const rightRef = useRef<HTMLSpanElement>(null)
@@ -139,6 +151,20 @@ export function Cube({
   }, [view])
 
   useEffect(() => {
+    timerStateRef.current = timer.state
+  }, [timer.state])
+
+  useEffect(() => {
+    onFlipSettledRef.current = onFlipSettled
+  }, [onFlipSettled])
+
+  useEffect(() => {
+    const next = clampFace(timer.active_face)
+    activeFaceRef.current = next
+    setActiveFace(next)
+  }, [timer.active_face])
+
+  useEffect(() => {
     onFlipStatsRef.current = onFlipStats
   }, [onFlipStats])
 
@@ -153,11 +179,16 @@ export function Cube({
       setNum(bottomRef.current, 2)
       setNum(backRef.current, 3)
 
-      const { mm, ss } = formatMmSs(facesMin[face]! * 60)
+      const display = formatTimerMs(timer.remaining_ms)
       const root = ledRootRef.current
       if (!root) return
       const digits = root.querySelectorAll('.led-digit')
-      ;[mm[0], mm[1], ss[0], ss[1]].forEach((ch, i) => {
+      ;[
+        display.left[0],
+        display.left[1],
+        display.right[0],
+        display.right[1],
+      ].forEach((ch, i) => {
         const digit = digits[i]
         if (!digit || !ch) return
         const on = segmentsFor(ch)
@@ -169,7 +200,7 @@ export function Cube({
         })
       })
     },
-    [facesMin],
+    [facesMin, timer.remaining_ms],
   )
 
   useLayoutEffect(() => {
@@ -260,11 +291,13 @@ export function Cube({
         paintFaces(next)
 
         scene.classList.remove('is-motion')
-        ledRef.current?.classList.add('is-on')
-        scene.querySelector('.led-gap')?.classList.add('is-blink')
+        if (timerStateRef.current === 'Running') {
+          ledRef.current?.classList.add('is-on')
+          scene.querySelector('.led-gap')?.classList.add('is-blink')
+        }
 
         setActiveFace(next)
-        setRunning(true)
+        onFlipSettledRef.current?.(next)
       }
 
       const finish = () => {
@@ -327,6 +360,8 @@ export function Cube({
 
   useCubeInteraction(sceneRef, {
     onFlip: flip,
+    onTap,
+    onLongPress: onReset,
     isBusy: () => busyRef.current,
   })
 
@@ -348,7 +383,8 @@ export function Cube({
     }
   }, [flip])
 
-  const { mm, ss } = formatMmSs(facesMin[activeFace]! * 60)
+  const display = formatTimerMs(timer.remaining_ms)
+  const running = timer.state === 'Running'
 
   return (
     <div
@@ -376,15 +412,20 @@ export function Cube({
             aria-hidden="true"
           />
           <div className="glass-bezel">
-            <div ref={ledRootRef} className="led-row" aria-label={`${mm} ${ss}`}>
-              <LedDigit char={mm[0] ?? '0'} />
-              <LedDigit char={mm[1] ?? '0'} />
+            <div
+              ref={ledRootRef}
+              className="led-row"
+              aria-label={`${display.left} ${display.right} ${display.unit}`}
+            >
+              <LedDigit char={display.left[0] ?? '0'} />
+              <LedDigit char={display.left[1] ?? '0'} />
               <span
                 className={`led-gap${running ? ' is-blink' : ''}`}
                 aria-hidden="true"
               />
-              <LedDigit char={ss[0] ?? '0'} />
-              <LedDigit char={ss[1] ?? '0'} />
+              <LedDigit char={display.right[0] ?? '0'} />
+              <LedDigit char={display.right[1] ?? '0'} />
+              <span className="led-unit">{display.unit}</span>
             </div>
           </div>
         </div>
@@ -432,4 +473,10 @@ function LedDigit({ char }: { char: string }) {
       ))}
     </span>
   )
+}
+
+function clampFace(face: number): FaceIndex {
+  return (
+    Number.isInteger(face) && face >= 0 && face < FACE_COUNT ? face : 0
+  ) as FaceIndex
 }

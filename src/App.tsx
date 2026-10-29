@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Cube, type CubeTheme } from './components/Cube/Cube'
+import { type AppSettings, useTimerStore } from './lib/timerStore'
 import {
   applyPreset,
   clamp,
@@ -12,9 +13,17 @@ import {
 const HINT_KEY = 'flip-cube-hint-seen'
 
 export default function App() {
+  const timer = useTimerStore((state) => state.timer)
+  const settings = useTimerStore((state) => state.settings)
+  const initTimer = useTimerStore((state) => state.init)
+  const flipSettle = useTimerStore((state) => state.flipSettle)
+  const tapTimer = useTimerStore((state) => state.tap)
+  const resetTimer = useTimerStore((state) => state.reset)
+  const saveSettings = useTimerStore((state) => state.saveSettings)
   const [theme, setTheme] = useState<CubeTheme>('white')
   const [perfMode, setPerfMode] = useState(false)
   const [hintVisible, setHintVisible] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [debugOpen, setDebugOpen] = useState(false)
   const [fps, setFps] = useState(0)
   const [lastFlipMaxMs, setLastFlipMaxMs] = useState(0)
@@ -25,6 +34,22 @@ export default function App() {
   )
   const touchTimer = useRef<number | null>(null)
   const [touchChrome, setTouchChrome] = useState(false)
+
+  useEffect(() => {
+    void initTimer()
+  }, [initTimer])
+
+  useEffect(() => {
+    setTheme(settings.theme)
+    setPerfMode(settings.perf_mode)
+    setView((cur) => ({
+      ...cur,
+      mode: settings.view_mode,
+      yaw: settings.yaw,
+      pitch: settings.pitch,
+      perspectiveFactor: settings.perspective_factor,
+    }))
+  }, [settings])
 
   useEffect(() => {
     saveView(view)
@@ -62,6 +87,13 @@ export default function App() {
   const setMode = useCallback((mode: ViewMode) => {
     setView(applyPreset(mode))
   }, [])
+
+  const updateSettings = useCallback(
+    (patch: Partial<AppSettings>) => {
+      void saveSettings({ ...settings, ...patch })
+    },
+    [saveSettings, settings],
+  )
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -197,7 +229,11 @@ export default function App() {
         <button
           type="button"
           className={`view-toggle${touchChrome ? ' is-touch-visible' : ''}`}
-          onClick={() => setMode(view.mode === 'angled' ? 'flat' : 'angled')}
+          onClick={() => {
+            const next = view.mode === 'angled' ? 'flat' : 'angled'
+            setMode(next)
+            updateSettings({ view_mode: next })
+          }}
           aria-label="Toggle view angle"
         >
           {view.mode === 'angled' ? 'Flat' : 'Angled'}
@@ -205,10 +241,22 @@ export default function App() {
         <button
           type="button"
           className={`theme-toggle${touchChrome ? ' is-touch-visible' : ''}`}
-          onClick={() => setTheme((t) => (t === 'white' ? 'black' : 'white'))}
+          onClick={() => {
+            const next = theme === 'white' ? 'black' : 'white'
+            setTheme(next)
+            updateSettings({ theme: next })
+          }}
           aria-label="Toggle cube theme"
         >
           {theme === 'white' ? 'Black' : 'White'}
+        </button>
+        <button
+          type="button"
+          className={`settings-toggle${touchChrome ? ' is-touch-visible' : ''}`}
+          onClick={() => setSettingsOpen((open) => !open)}
+          aria-label="Open settings"
+        >
+          Settings
         </button>
       </div>
 
@@ -222,10 +270,22 @@ export default function App() {
 
       <Cube
         theme={theme}
+        facesMin={settings.face_minutes}
         perfMode={perfMode}
         view={view}
+        timer={timer}
+        onFlipSettled={(face) => void flipSettle(face)}
+        onTap={() => void tapTimer()}
+        onReset={() => void resetTimer()}
         onFlipStats={onFlipStats}
         onFitChange={setEdgePx}
+      />
+
+      <SettingsOverlay
+        open={settingsOpen}
+        settings={settings}
+        onClose={() => setSettingsOpen(false)}
+        onChange={updateSettings}
       />
 
       <p className={`desk-hint${hintVisible ? ' is-visible' : ''}`}>
@@ -245,4 +305,118 @@ function round2(n: number): number {
 
 function round3(n: number): number {
   return Math.round(n * 1000) / 1000
+}
+
+function SettingsOverlay({
+  open,
+  settings,
+  onClose,
+  onChange,
+}: {
+  open: boolean
+  settings: AppSettings
+  onClose: () => void
+  onChange: (patch: Partial<AppSettings>) => void
+}) {
+  if (!open) return null
+
+  const rtl = settings.language === 'ar'
+  const text = rtl
+    ? {
+        title: 'إعدادات منظم الوقت',
+        close: 'إغلاق',
+        theme: 'المظهر',
+        language: 'اللغة',
+        sound: 'الصوت',
+        perf: 'أداء أعلى',
+        autostart: 'تشغيل تلقائي',
+        faces: 'الدقائق',
+      }
+    : {
+        title: 'Timer Settings',
+        close: 'Close',
+        theme: 'Theme',
+        language: 'Language',
+        sound: 'Sound',
+        perf: 'Performance mode',
+        autostart: 'Autostart',
+        faces: 'Face minutes',
+      }
+
+  return (
+    <div className="settings-panel" dir={rtl ? 'rtl' : 'ltr'}>
+      <div className="settings-card">
+        <div className="settings-card__head">
+          <h2>{text.title}</h2>
+          <button type="button" onClick={onClose}>
+            {text.close}
+          </button>
+        </div>
+        <label>
+          {text.theme}
+          <select
+            value={settings.theme}
+            onChange={(e) => onChange({ theme: e.currentTarget.value as CubeTheme })}
+          >
+            <option value="white">White</option>
+            <option value="black">Black</option>
+          </select>
+        </label>
+        <label>
+          {text.language}
+          <select
+            value={settings.language}
+            onChange={(e) =>
+              onChange({ language: e.currentTarget.value as AppSettings['language'] })
+            }
+          >
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <div className="settings-grid">
+          {settings.face_minutes.map((minutes, index) => (
+            <label key={index}>
+              {text.faces} {index + 1}
+              <input
+                type="number"
+                min={1}
+                max={180}
+                value={minutes}
+                onChange={(e) => {
+                  const faceMinutes = [...settings.face_minutes] as AppSettings['face_minutes']
+                  faceMinutes[index] = clamp(Number(e.currentTarget.value), 1, 180)
+                  onChange({ face_minutes: faceMinutes })
+                }}
+              />
+            </label>
+          ))}
+        </div>
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={settings.sound_enabled}
+            onChange={(e) => onChange({ sound_enabled: e.currentTarget.checked })}
+          />
+          {text.sound}
+        </label>
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={settings.perf_mode}
+            onChange={(e) => onChange({ perf_mode: e.currentTarget.checked })}
+          />
+          {text.perf}
+        </label>
+        <label className="settings-check">
+          <input
+            type="checkbox"
+            checked={settings.autostart}
+            onChange={(e) => onChange({ autostart: e.currentTarget.checked })}
+          />
+          {text.autostart}
+        </label>
+      </div>
+    </div>
+  )
 }

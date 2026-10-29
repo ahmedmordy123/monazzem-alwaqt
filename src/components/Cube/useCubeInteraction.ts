@@ -2,27 +2,41 @@ import { useEffect, useRef, type RefObject } from 'react'
 
 const SWIPE_THRESHOLD_PX = 36
 const INPUT_LOCK_MS = 300
+const LONG_PRESS_MS = 550
+/** 8% edge inset — ignore presses near viewport chrome */
+const EDGE_INSET = 0.08
 
 export type FlipHandler = (direction: 1 | -1, axis: 'x' | 'y') => void
 
 type Options = {
   onFlip: FlipHandler
+  /** Short tap (no movement) — pause/resume */
+  onTap?: () => void
+  /** Long-press — reset to full face duration (Idle) */
+  onLongPress?: () => void
   isBusy: () => boolean
   lockAfterFlipMs?: number
 }
 
 export function useCubeInteraction(
   targetRef: RefObject<HTMLElement | null>,
-  { onFlip, isBusy, lockAfterFlipMs = INPUT_LOCK_MS }: Options,
+  { onFlip, onTap, onLongPress, isBusy, lockAfterFlipMs = INPUT_LOCK_MS }: Options,
 ) {
   const onFlipRef = useRef(onFlip)
+  const onTapRef = useRef(onTap)
+  const onLongPressRef = useRef(onLongPress)
   const isBusyRef = useRef(isBusy)
   const gestureLockUntil = useRef(0)
 
   useEffect(() => {
     onFlipRef.current = onFlip
   }, [onFlip])
-
+  useEffect(() => {
+    onTapRef.current = onTap
+  }, [onTap])
+  useEffect(() => {
+    onLongPressRef.current = onLongPress
+  }, [onLongPress])
   useEffect(() => {
     isBusyRef.current = isBusy
   }, [isBusy])
@@ -35,6 +49,8 @@ export function useCubeInteraction(
     let startX = 0
     let startY = 0
     let moved = false
+    let longFired = false
+    let longTimer: number | null = null
 
     const blocked = () =>
       isBusyRef.current() || performance.now() < gestureLockUntil.current
@@ -43,19 +59,46 @@ export function useCubeInteraction(
       gestureLockUntil.current = performance.now() + lockAfterFlipMs
     }
 
+    const clearLong = () => {
+      if (longTimer !== null) {
+        window.clearTimeout(longTimer)
+        longTimer = null
+      }
+    }
+
+    const inEdgeInset = (x: number, y: number) => {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      const ix = w * EDGE_INSET
+      const iy = h * EDGE_INSET
+      return x < ix || x > w - ix || y < iy || y > h - iy
+    }
+
     const onPointerDown = (e: PointerEvent) => {
       if (blocked()) return
       if (pointerId !== null) return
+      if (inEdgeInset(e.clientX, e.clientY)) return
       pointerId = e.pointerId
       startX = e.clientX
       startY = e.clientY
       moved = false
+      longFired = false
       el.setPointerCapture(e.pointerId)
+      clearLong()
+      longTimer = window.setTimeout(() => {
+        if (pointerId === null || moved) return
+        longFired = true
+        onLongPressRef.current?.()
+        armLock()
+      }, LONG_PRESS_MS)
     }
 
     const onPointerMove = (e: PointerEvent) => {
       if (pointerId !== e.pointerId) return
-      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) moved = true
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) {
+        moved = true
+        clearLong()
+      }
     }
 
     const finish = (e: PointerEvent) => {
@@ -63,6 +106,8 @@ export function useCubeInteraction(
       const dx = e.clientX - startX
       const dy = e.clientY - startY
       pointerId = null
+      clearLong()
+      if (longFired) return
       if (blocked()) return
 
       if (moved && Math.hypot(dx, dy) >= SWIPE_THRESHOLD_PX) {
@@ -76,7 +121,11 @@ export function useCubeInteraction(
       }
 
       if (!moved) {
-        onFlipRef.current(1, 'y')
+        if (onTapRef.current) {
+          onTapRef.current()
+        } else {
+          onFlipRef.current(1, 'y')
+        }
         armLock()
       }
     }
@@ -89,7 +138,7 @@ export function useCubeInteraction(
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'd' || e.key === 'D') return
+      if (e.key === 'd' || e.key === 'D' || e.key === 'p' || e.key === 'P') return
       if (blocked()) return
       if (e.key === 'ArrowLeft') {
         e.preventDefault()
@@ -107,8 +156,10 @@ export function useCubeInteraction(
         e.preventDefault()
         onFlipRef.current(1, 'x')
         armLock()
-      } else if (e.key === 'p' || e.key === 'P') {
-        // handled in App for perf mode
+      } else if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault()
+        onTapRef.current?.()
+        armLock()
       }
     }
 
@@ -120,6 +171,7 @@ export function useCubeInteraction(
     window.addEventListener('keydown', onKeyDown)
 
     return () => {
+      clearLong()
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup', finish)

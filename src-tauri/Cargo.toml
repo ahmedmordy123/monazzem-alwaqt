@@ -1,0 +1,32 @@
+[package]
+name = "flip-cube-timer"
+version = "0.1.0"
+edition = "2021"
+description = "Flip cube timer — منظم الوقت"
+authors = ["flip-cube-timer"]
+
+[lib]
+name = "flip_cube_timer"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "flip-cube-timer"
+path = "src/main.rs"
+required-features = ["app"]
+
+[features]
+default = ["app"]
+app = ["tauri", "tauri-build"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tauri = { version = "2", features = ["tray-icon"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"
