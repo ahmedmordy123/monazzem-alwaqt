@@ -507,10 +507,15 @@ fn notify_finished(app: &AppHandle, snapshot: &TimerSnapshot) -> Result<(), Stri
     )
     .map_err(|error| error.to_string())?;
     if settings.sound_enabled {
+        let body = match settings.language {
+            crate::storage::Language::Ar => "انتهى الوقت — اضغط للإيقاف",
+            crate::storage::Language::En => "Time's up — tap to dismiss",
+        };
         app.notification()
             .builder()
             .title("منظم الوقت")
-            .body(remaining_text)
+            .body(body)
+            .silent()
             .show()
             .map_err(|error| error.to_string())?;
     }

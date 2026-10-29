@@ -291,8 +291,13 @@ export function Cube({
         paintFaces(next)
 
         scene.classList.remove('is-motion')
-        if (timerStateRef.current === 'Running') {
+        if (
+          timerStateRef.current === 'Running' ||
+          timerStateRef.current === 'Finished'
+        ) {
           ledRef.current?.classList.add('is-on')
+        }
+        if (timerStateRef.current === 'Running') {
           scene.querySelector('.led-gap')?.classList.add('is-blink')
         }
 
@@ -385,11 +390,12 @@ export function Cube({
 
   const display = formatTimerMs(timer.remaining_ms)
   const running = timer.state === 'Running'
+  const finished = timer.state === 'Finished'
 
   return (
     <div
       ref={sceneRef}
-      className={`cube-scene${perfMode ? ' is-perf' : ''}`}
+      className={`cube-scene${perfMode ? ' is-perf' : ''}${finished ? ' is-finished' : ''}`}
       role="application"
       aria-label="Flip cube timer"
       data-testid="cube-scene"
@@ -408,21 +414,23 @@ export function Cube({
         <div className="cube-face cube-face--front">
           <span
             ref={ledRef}
-            className={`glass-led${running ? ' is-on' : ''}`}
+            className={`glass-led${running || finished ? ' is-on' : ''}${finished ? ' is-flash' : ''}`}
             aria-hidden="true"
           />
           <div className="glass-bezel">
             <div
               ref={ledRootRef}
-              className="led-row"
-              aria-label={`${display.left} ${display.right} ${display.unit}`}
+              className={`led-row${finished ? ' is-flash' : ''}`}
+              aria-label={`${display.left}:${display.right} ${display.unit}`}
             >
               <LedDigit char={display.left[0] ?? '0'} />
               <LedDigit char={display.left[1] ?? '0'} />
               <span
                 className={`led-gap${running ? ' is-blink' : ''}`}
                 aria-hidden="true"
-              />
+              >
+                <span className="led-colon" />
+              </span>
               <LedDigit char={display.right[0] ?? '0'} />
               <LedDigit char={display.right[1] ?? '0'} />
               <span className="led-unit">{display.unit}</span>

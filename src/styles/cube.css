@@ -33,6 +33,12 @@
   opacity: 0.85;
 }
 
+.desk-hint.is-urgent {
+  opacity: 1;
+  color: #e8e8e8;
+  letter-spacing: 0.04em;
+}
+
 /* Edge length + perspective set from JS fit (silhouette-aware) */
 .cube-scene {
   --cube-size: 280px;
@@ -52,19 +58,24 @@
 
 .cube-shadow {
   position: absolute;
-  left: 16%;
-  right: 16%;
-  bottom: -5%;
-  height: 10%;
+  left: 10%;
+  right: 10%;
+  bottom: -9%;
+  height: 18%;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.45);
-  transform: translate3d(var(--nudge-x), var(--nudge-y), 0) scaleY(0.4);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.62) 0%,
+    rgba(0, 0, 0, 0.28) 42%,
+    transparent 72%
+  );
+  transform: translate3d(var(--nudge-x), var(--nudge-y), 0) scaleY(0.52);
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.85;
 }
 
 .cube-scene.is-motion .cube-shadow {
-  opacity: 0;
+  opacity: 0.2;
 }
 
 .cube-scene.is-motion .cube-face::after {
@@ -95,19 +106,14 @@
   inset: 0;
   transform-style: preserve-3d;
   pointer-events: none;
-  visibility: hidden;
-}
-
-.cube-scene.is-motion .cube-core {
-  visibility: visible;
 }
 
 .cube-core-face {
-  --cz: calc(var(--cube-size) * 0.28);
+  --cz: calc(var(--cube-size) * 0.34);
   position: absolute;
-  inset: 22%;
+  inset: 16%;
   background: var(--body);
-  border-radius: calc(var(--cube-size) * 0.05);
+  border-radius: calc(var(--cube-size) * 0.04);
 }
 
 .cube-core-face--front {
@@ -134,25 +140,27 @@
   --z: calc(var(--cube-size) / 2);
   position: absolute;
   /*
-   * Heavy overlap (~11% each side) + body-color bleed seals AA gaps at
-   * front/right and top/front (LED) corners without showing the core.
+   * Tight overlap (~3% each side). Enough to seal corners; light enough
+   * that the right face does not read as a translucent wing.
    */
-  width: calc(100% + var(--cube-size) * 0.22);
-  height: calc(100% + var(--cube-size) * 0.22);
-  left: calc(var(--cube-size) * -0.11);
-  top: calc(var(--cube-size) * -0.11);
+  width: calc(100% + var(--cube-size) * 0.06);
+  height: calc(100% + var(--cube-size) * 0.06);
+  left: calc(var(--cube-size) * -0.03);
+  top: calc(var(--cube-size) * -0.03);
   display: grid;
   place-items: center;
-  border-radius: calc(var(--cube-size) * 0.16);
+  border-radius: calc(var(--cube-size) * 0.14);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   background-color: var(--body);
+  background-clip: padding-box;
   color: var(--ink);
   overflow: hidden;
   border: none;
   outline: none;
-  /* Soft body bleed fills sub-pixel seams between adjacent faces */
-  box-shadow: 0 0 0 calc(var(--cube-size) * 0.035) var(--body);
+  opacity: 1;
+  box-shadow: none;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Static per-face shading (settled only; disabled mid-flip) */
@@ -167,29 +175,38 @@
 }
 
 .cube-face--front::after {
-  background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.14) 0%,
-    rgba(0, 0, 0, 0.08) 48%,
-    rgba(0, 0, 0, 0.16) 100%
-  );
+  background:
+    linear-gradient(90deg, transparent 78%, rgba(0, 0, 0, 0.1) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, transparent 22%),
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(0, 0, 0, 0.08) 48%,
+      rgba(0, 0, 0, 0.18) 100%
+    );
 }
 
 .cube-face--top::after {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.35) 0%,
-    rgba(255, 255, 255, 0.08) 100%
-  );
+  /* Keep the top lit, but darken the front/right contact so the crease vanishes */
+  background:
+    linear-gradient(90deg, transparent 72%, rgba(0, 0, 0, 0.16) 100%),
+    linear-gradient(180deg, transparent 62%, rgba(0, 0, 0, 0.1) 100%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.26) 0%,
+      rgba(255, 255, 255, 0.06) 100%
+    );
 }
 
 .cube-face--right::after {
-  /* Avoid a bright near-edge that reads as a seam against the front face */
-  background: linear-gradient(
-    95deg,
-    rgba(0, 0, 0, 0.14) 0%,
-    rgba(0, 0, 0, 0.24) 100%
-  );
+  /* Darker along the front and top edges — no bright strip at the crease */
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, transparent 34%),
+    linear-gradient(
+      95deg,
+      rgba(0, 0, 0, 0.2) 0%,
+      rgba(0, 0, 0, 0.3) 100%
+    );
 }
 
 .cube-face--left::after {
@@ -217,46 +234,51 @@
 }
 
 .cube[data-theme='black'] .cube-face--top::after {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.2) 0%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
+  background:
+    linear-gradient(90deg, transparent 72%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, transparent 62%, rgba(0, 0, 0, 0.16) 100%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
 }
 
 .cube[data-theme='black'] .cube-face--right::after {
-  background: linear-gradient(
-    95deg,
-    rgba(0, 0, 0, 0.08) 0%,
-    rgba(0, 0, 0, 0.4) 100%
-  );
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, transparent 34%),
+    linear-gradient(
+      95deg,
+      rgba(0, 0, 0, 0.16) 0%,
+      rgba(0, 0, 0, 0.45) 100%
+    );
 }
 
 .cube-face--front {
-  /* Proud so front owns shared edges (kills light seam vs right) */
-  transform: translateZ(calc(var(--z) + 1px));
+  transform: translateZ(var(--z));
+  z-index: 3;
 }
 
 .cube-face--back {
-  transform: rotateY(180deg) translateZ(calc(var(--z) - 1px));
+  transform: rotateY(180deg) translateZ(var(--z));
 }
 
 .cube-face--right {
-  /* Recessed under front/top — removes double edge on top of right */
-  transform: rotateY(90deg) translateZ(calc(var(--z) - 3.5px));
+  transform: rotateY(90deg) translateZ(calc(var(--z) - 0.7px));
+  z-index: 1;
 }
 
 .cube-face--left {
-  transform: rotateY(-90deg) translateZ(calc(var(--z) - 1.5px));
+  transform: rotateY(-90deg) translateZ(var(--z));
 }
 
 .cube-face--top {
-  /* Proud at the LED corner so top/front notch closes */
-  transform: rotateX(90deg) translateZ(calc(var(--z) + 1px));
+  transform: rotateX(90deg) translateZ(calc(var(--z) - 0.45px));
+  z-index: 2;
 }
 
 .cube-face--bottom {
-  transform: rotateX(-90deg) translateZ(calc(var(--z) - 2px));
+  transform: rotateX(-90deg) translateZ(var(--z));
 }
 
 /*
@@ -297,7 +319,7 @@
 .glass-bezel {
   position: relative;
   z-index: 1;
-  /* ~8% frame around glass */
+  /* ~8% frame around glass — solid, no glassmorphism */
   width: 86%;
   height: 72%;
   border-radius: 14%;
@@ -305,6 +327,8 @@
   display: grid;
   place-items: center;
   box-shadow: none;
+  opacity: 1;
+  isolation: isolate;
 }
 
 .cube-scene.is-motion .glass-bezel {
@@ -370,13 +394,55 @@
   height: 1.1em;
   font-size: calc(var(--cube-size) * 0.145);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.22em;
 }
 
-/* Spatial gap only (no colon glyphs). Subtle blink via opacity on the spacer. */
+.led-colon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28em;
+  width: 0.12em;
+}
+
+.led-colon::before,
+.led-colon::after {
+  content: '';
+  width: 0.12em;
+  height: 0.12em;
+  border-radius: 50%;
+  background: #f0f0f0;
+  opacity: 0.95;
+}
+
+/* Subtle blink of the colon while running. */
 .led-gap.is-blink {
   animation: gap-blink 1s steps(1, end) infinite;
+}
+
+.glass-led.is-flash,
+.led-row.is-flash {
+  animation: finish-flash 0.55s ease-in-out infinite;
+}
+
+.cube-scene.is-finished .glass-led.is-on {
+  background: #ff5a3c;
+}
+
+.cube-scene:not(.is-perf).is-finished .glass-led.is-on {
+  box-shadow: 0 0 8px 2px rgba(255, 90, 60, 0.55);
+}
+
+@keyframes finish-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.12;
+  }
 }
 
 .led-unit {

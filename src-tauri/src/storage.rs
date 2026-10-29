@@ -79,7 +79,7 @@ impl Default for AppSettings {
             theme: Theme::White,
             language: Language::Ar,
             sound_enabled: true,
-            sound_path: None,
+            sound_path: Some("/sounds/alarm.wav".into()),
             view_mode: ViewMode::Angled,
             display_mode: DisplayMode::DeskCube,
             yaw: -22.0,

@@ -9,6 +9,7 @@ import {
   type ViewAngles,
   type ViewMode,
 } from './lib/viewSettings'
+import { isAlarmPlaying, playAlarm, stopAlarm } from './lib/alarm'
 
 const HINT_KEY = 'flip-cube-hint-seen'
 
@@ -288,8 +289,14 @@ export default function App() {
         onChange={updateSettings}
       />
 
-      <p className={`desk-hint${hintVisible ? ' is-visible' : ''}`}>
-        اسحب / انقر للقلب · Swipe or click to flip · ← → · Wheel
+      <p
+        className={`desk-hint${hintVisible || timer.state === 'Finished' ? ' is-visible' : ''}${timer.state === 'Finished' ? ' is-urgent' : ''}`}
+      >
+        {timer.state === 'Finished'
+          ? settings.language === 'ar'
+            ? 'اضغط لإيقاف التنبيه'
+            : 'Tap to stop the alarm'
+          : 'اسحب / انقر للقلب · Swipe or click to flip · ← → · Wheel'}
       </p>
     </div>
   )
@@ -318,6 +325,15 @@ function SettingsOverlay({
   onClose: () => void
   onChange: (patch: Partial<AppSettings>) => void
 }) {
+  const [testingAlarm, setTestingAlarm] = useState(false)
+
+  useEffect(() => {
+    if (!open && testingAlarm) {
+      stopAlarm()
+      setTestingAlarm(false)
+    }
+  }, [open, testingAlarm])
+
   if (!open) return null
 
   const rtl = settings.language === 'ar'
@@ -400,6 +416,31 @@ function SettingsOverlay({
           />
           {text.sound}
         </label>
+        <button
+          type="button"
+          className="settings-test-sound"
+          onClick={() => {
+            if (testingAlarm || isAlarmPlaying()) {
+              stopAlarm()
+              setTestingAlarm(false)
+              return
+            }
+            setTestingAlarm(true)
+            void playAlarm({
+              enabled: true,
+              volume: 0.9,
+              src: settings.sound_path ?? '/sounds/alarm.wav',
+            })
+          }}
+        >
+          {testingAlarm
+            ? rtl
+              ? 'إيقاف التنبيه'
+              : 'Stop alarm'
+            : rtl
+              ? 'تجربة التنبيه'
+              : 'Test alarm'}
+        </button>
         <label className="settings-check">
           <input
             type="checkbox"

@@ -1,7 +1,7 @@
 # Progress — flip-cube-timer (منظم الوقت)
 
 ## Status
-- **Current:** M2–M5 code landed; **M6 installer blocked on MSVC VC Tools (needs admin/UAC)**
+- **Current:** native `tauri:dev` running; **quality polish pass** (cube crease/lighting, looping two-tone alarm + fade-in, finish hint/dismiss). M6 installer still separate.
 - **Date:** 2026-10-29
 
 ## Commits
