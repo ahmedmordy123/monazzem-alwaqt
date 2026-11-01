@@ -64,3 +64,5 @@ src-tauri/WixTools/
 # Misc
 *.tsbuildinfo
 .eslintcache
+
+mobile/android/build/
