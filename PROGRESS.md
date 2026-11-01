@@ -1,7 +1,7 @@
 # Progress — flip-cube-timer (منظم الوقت)
 
 ## Status
-- **Current:** native `tauri:dev` running; **quality polish pass** (cube crease/lighting, looping two-tone alarm + fade-in, finish hint/dismiss). M6 installer still separate.
+- **Current:** Windows NSIS installer + **Android Flutter APK** (`installer/monazzem.apk`). Flip-the-phone face detection, timer, alarm, settings.
 - **Date:** 2026-10-29
 
 ## Commits
@@ -18,7 +18,7 @@
 - `cargo clippy --no-default-features --lib -- -D warnings` → clean
 - `npm.cmd run build` → OK
 - Playwright e2e (`tests/e2e`) → smoke specs present; not rerun in this pass
-- `tauri build` → **blocked** (no `link.exe` / VC Tools)
+- `tauri build` → **passed** — `src-tauri/target/release/bundle/nsis/منظم الوقت_0.1.0_x64-setup.exe` (~3.9 MB)
 
 ## Decisions (locked)
 - Tauri 2 + React + TS + Vite + Zustand
@@ -52,7 +52,7 @@
 | M3 desk/widget + monitor match | coded (matcher tested; live Spacedesk migration needs MSVC app) |
 | M4 tray/wake/hotkeys/single-instance | coded (tray, wake, single-instance; hotkeys exposed as command stubs) |
 | M5 persistence/autostart | persistence done; autostart flag in settings (OS register pending full app) |
-| M6 package/docs | logging/icons/NSIS config done; installer pending MSVC |
+| M6 package/docs | NSIS installer built; send `installer/flip-cube-timer-setup.exe` |
 
 ## Known gaps until MSVC
 - Cannot produce NSIS or run installed-app smoke

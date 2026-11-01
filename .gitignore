@@ -6,6 +6,24 @@ dist/
 dist-ssr/
 src-tauri/target/
 target/
+installer/*.exe
+installer/*.apk
+installer/*.nsis.zip
+installer/shots/
+installer/orient-shots/
+installer/*.mp4
+installer/*.png
+
+# Flutter / Android local build junk (source stays tracked)
+mobile/.dart_tool/
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/build/
+mobile/.flutter-plugins-dependencies
+
+# Tauri generated
+src-tauri/gen/
 
 # Benchmarks / screenshots (raw / large)
 benchmarks/

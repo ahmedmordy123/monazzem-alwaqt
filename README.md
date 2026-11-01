@@ -1,62 +1,64 @@
 # منظم الوقت / Flip Cube Timer
 
-Software flip-cube timer for Windows (Tauri 2 + React). Flip the cube to pick a duration; countdown starts when the flip settles. Designed for a Spacedesk tablet display and a small desktop widget.
+Open-source flip-cube timer for **Windows** and **Android**. Flip the cube (or lay the phone on a face) to pick a duration; the countdown starts when the face settles.
 
-## Install
+## Download / تحميل
 
-1. Run the NSIS installer from `src-tauri/target/release/bundle/nsis/` (after `npm run tauri build`).
-2. WebView2: the installer can download the Evergreen bootstrapper if needed.
-3. Portable: use the `.exe` under `bundle/nsis` / portable target when enabled.
+| Platform | File | Link |
+|----------|------|------|
+| **Android APK** | `monazzem.apk` | [Download APK](https://github.com/ahmedmordy123/monazzem-alwaqt/releases/download/v0.2.0/monazzem.apk) |
+| **Windows installer** | `flip-cube-timer-setup.exe` | [Download EXE](https://github.com/ahmedmordy123/monazzem-alwaqt/releases/download/v0.2.0/flip-cube-timer-setup.exe) |
 
-## Usage
+All releases: https://github.com/ahmedmordy123/monazzem-alwaqt/releases
 
-| Action | How |
-|--------|-----|
-| Flip / choose duration | Swipe any direction, click-drag, mouse wheel, ← → ↑ ↓ |
-| Pause / resume | Tap / click (no move), Space |
-| Reset to full face | Long-press (~550ms) |
-| Settings | Settings button (top chrome) |
-| Debug overlay | `D` |
-| Performance flip | `P` |
-| View angled/flat | `V` |
+### Android
+1. Allow install from unknown sources / “Install unknown apps” for your browser/Files.
+2. Open the APK and install.
+3. Lay the phone on a duration face to start; tap to pause; long-press to reset.
 
-Faces (default minutes): 5, 15, 25, 45, 60, custom (10). Edit 1–180 in Settings. LED shows `MM SS`, or `HH MM` + HR when remaining ≥ 100 minutes.
+### Windows
+1. Windows 10/11 64-bit.
+2. Run the setup. If SmartScreen appears: **More info → Run anyway**.
+3. WebView2 bootstrapper is embedded (needs internet once if missing).
 
-## Hotkeys (defaults)
+## Features
 
-- `Ctrl+Alt+Right` — flip  
-- `Ctrl+Alt+Space` — pause/resume  
-- `Ctrl+Alt+R` — reset  
-- `Ctrl+Alt+D` — desk ↔ widget  
+- 3D flip cube (Windows CSS / Android Matrix4)
+- Face durations (default): 5, 15, 25, 45, 60, 10 minutes (editable)
+- Alarm on finish, Arabic/English UI, light/dark cube theme
+- Android: accelerometer face detection + sensor screen orientation
+- Windows: desk/widget modes, Spacedesk-friendly
 
-## Spacedesk tips
+## Source layout
 
-- Identify the tablet by resolution/scale/position (not only OS id).
-- If the virtual display disappears, the window moves to the primary monitor; when Spacedesk returns, it moves back.
-- Prefer a stable tablet resolution/orientation while timing.
+```
+src/            React + Vite UI (Windows)
+src-tauri/      Tauri 2 + Rust timer engine
+mobile/         Flutter Android app
+installer/      Built APK / EXE (not in git; attached to Releases)
+```
 
 ## Build from source
 
-**Prerequisites:** Node 20+, Rust stable, **Visual Studio Build Tools with C++ workload** (`link.exe`), WebView2 runtime.
+### Windows (Tauri)
+**Prerequisites:** Node 20+, Rust stable, VS Build Tools (C++), WebView2.
 
 ```powershell
-$env:Path = "$env:USERPROFILE\.cargo\bin;E:\toolchains\mingw64\bin;$env:Path"  # lib tests
-cd E:\flip-cube-timer
 npm install
-cd src-tauri
-cargo test --no-default-features --lib
-cargo clippy --no-default-features --lib -- -D warnings
-cd ..
-npm run build
-# Full app (requires MSVC):
-npm run tauri dev
 npm run tauri build
 ```
 
-## Arabic / English
+### Android (Flutter)
+**Prerequisites:** Flutter stable, Android SDK.
 
-UI language is selectable in Settings. Layout is RTL for Arabic; numerals stay Western digits.
+```powershell
+cd mobile
+flutter pub get
+flutter test
+flutter build apk --release
+# output: build/app/outputs/flutter-apk/app-release.apk
+```
 
 ## License
 
-Private / project use.
+MIT — free to use, share, and modify.
